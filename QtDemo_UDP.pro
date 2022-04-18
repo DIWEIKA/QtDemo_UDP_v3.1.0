@@ -11,14 +11,12 @@ CONFIG += c++11
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
-    recvdata.cpp \
-    senddata.cpp
+    recvdata.cpp
 
 HEADERS += \
     CirQueue.h \
     mainwindow.h \
-    recvdata.h \
-    senddata.h
+    recvdata.h
 
 FORMS += \
     mainwindow.ui

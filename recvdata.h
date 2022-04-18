@@ -42,7 +42,7 @@ public:
     Ui::MainWindow *UI;
     SOCKET Recvsocket;
 
-    qint64 LenoUDP = 1366*60000;  //CHdata的长度 最大为9223372036854775807
+
     string saveFolder;//存储目录（文件夹）
     QString saveFilename1; //CH1存储文件名
     QString saveFilename2;
@@ -57,11 +57,12 @@ public:
     sockaddr_in clientAddr; //客户端地址
     quint16 clientPort; //客户端端口号
     QTimer* udpTimer; //定时器 用来计时1分钟
-    shared_ptr<CirQueue<float>> CHdata; //存放Channel数据的容器
+
     shared_ptr<CirQueue<char>> CHdata2; //测试
     char usCHDATA;
-    qint64 LenoBuf;
-    char RecvBuf[];
+    qint64 LenoUDP = 600000;  //CHdata的长度 最大为9223372036854775807
+    qint64 LenoBuf = 65535;
+    char RecvBuf[65535];
     int hasRecv;
     int PeakNum = 31;//峰值数
 

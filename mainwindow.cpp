@@ -30,15 +30,21 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     //init RecvSocket
-    RecvSocket = socket(AF_INET, SOCK_DGRAM, 0);
+    RecvSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+    if(RecvSocket == INVALID_SOCKET)
+    {
+        qDebug() <<"Socket established failed !" << endl;
+        return;
+    }
 
     //Config RecvAddr
     RecvAddr.sin_family = AF_INET;
-    RecvAddr.sin_port = htons(8000); //Client port 8000
-    RecvAddr.sin_addr.S_un.S_addr = inet_addr( "127.0.0.1"); //Client IP
+    RecvAddr.sin_port = htons(7000); //set Destination port
+    RecvAddr.sin_addr.S_un.S_addr = htons(INADDR_ANY); //set Destination IP (suggest 0.0.0.0: 8000)
 
     //Bind RecvSocket to RecvAddr
-   int bdOk = bind(RecvSocket, (SOCKADDR *)&RecvAddr, sizeof(RecvAddr));
+   int bdOk = bind(RecvSocket, (SOCKADDR *)&RecvAddr, sizeof(SOCKADDR_IN));
 
    if(bdOk  == SOCKET_ERROR)
    {
@@ -56,19 +62,13 @@ MainWindow::MainWindow(QWidget *parent)
     //Counting 60s
     udpTimer = new QTimer(); //计时1分钟
     udpTimer->setTimerType(Qt::PreciseTimer);//设置定时器对象精确度模式，分辨率为1ms
+    udpTimer->start(60000);
 
+    //Every 60s emit a timeout()
+    connect(udpTimer,&QTimer::timeout,this,&MainWindow::TimeUpdate);
 
-    //循环接收数据
-    while(1)
-        {
-            //start Timer
-            udpTimer->start(60000);
-
-            //Every 60s emit a timeout()
-            connect(udpTimer,&QTimer::timeout,this,&MainWindow::TimeUpdate);
-
-            recvdata->UDPRecieve();
-        }
+    //receiving data 有bug！！！！！！！！！
+        recvdata->UDPRecieve();
 
 }
 
@@ -95,37 +95,12 @@ void MainWindow::TimeUpdate()
 
 void MainWindow::on_pushButton_Send_clicked()
 {
-    qDebug()<<" pushButton_Send_clicked "<<endl;
 
-    //New SendSocket Object
-    SendSocket = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
-
-    //New Senddata Object
-    senddata = new Senddata(SendSocket, ui);
-
-    //ifStream >> sendData
-    senddata->ReadFromFiles();
-
-    //sendData >> msgbuf
-    senddata->getConfig();
-
-    isStopSend = false;
-
-    while(1)
-    {
-        //msgbuf >> UDP
-        senddata->writeDatagram();
-
-        qDebug()<<"sending data ... "<<endl;
-
-        //delay 1ms
-        Sleep(1);
-    }
 }
 
 void MainWindow::on_pushButton_Stop_clicked()
 {
-    recvdata->CloseUDP();
+
 }
 
 

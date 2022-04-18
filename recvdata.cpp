@@ -6,12 +6,13 @@ Recvdata::Recvdata(SOCKET socket, Ui::MainWindow *ui)
 
     UI = ui;
 
+//    //init RecvBuf
+//    RecvBuf[LenoBuf];
+
     //share memory to clientAddr
     ZeroMemory(&clientAddr, sizeof(clientAddr));
 
     //CHdata初始化 。
-    CHdata=make_shared<CirQueue<float>>(LenoUDP);
-
     CHdata2 = make_shared<CirQueue<char>>(LenoUDP);
 }
 
@@ -31,29 +32,22 @@ void Recvdata:: UDPRecieve()
              return;
         }
 
-       //Display message and client info
-//       char clientIP[256];
-//       ZeroMemory(clientIP,256);
-//       inet_nt(AF_INET, &clientAddr.sin_addr, clientIP, 256); //clientIP << clientAddr.sin_addr
-
-       qDebug()<<"Recv Message :"<<RecvBuf<< endl;
-
        //CHData << RecvBuf
        getDatafromBufToCHdata();
+
+       //close UDP socket
+       CloseUDP();
 }
 
 void Recvdata::readDatagram()
 {
-    //int LenoBuf
-    LenoBuf = 8192;
 
-    //share memory to RecvBuf
-    ZeroMemory(RecvBuf,LenoBuf);
-
-    int clientAddrLen = sizeof(clientAddr);
+    int clientAddrLen = sizeof(SOCKADDR);
 
     //读取对方发送的内容，并存入RecvBuf
-    hasRecv = recvfrom(Recvsocket,RecvBuf,LenoBuf, 0, (SOCKADDR* )&clientAddr, &clientAddrLen);
+    hasRecv = recvfrom(Recvsocket, RecvBuf, LenoBuf,  0 , (SOCKADDR* )&clientAddr, &clientAddrLen);
+
+    qDebug()<<"hasRecv = "<<hasRecv<<endl;
 }
 
 void Recvdata:: changeFileNameOnce()
@@ -79,7 +73,7 @@ void Recvdata::getDatafromBufToCHdata()
      {
         char usCHDATA =RecvBuf[i];
 
-        CHdata->push(float(usCHDATA));
+//        qDebug()<< "usCHDATA = "<< usCHDATA<<endl;
 
         //测试
         CHdata2->push(usCHDATA);
@@ -96,8 +90,10 @@ void Recvdata:: WriteToFilesWith3Channels()
     //打开文件失败则结束运行
     if (!outfile1.is_open() || !outfile2.is_open() || !outfile3.is_open()) return;
 
+    unsigned int lenoCHdata = CHdata2->size();
+
     //按先后顺序将CH1、CH2、CH3的数据分开存储
-    for(unsigned int i=0; i<CHdata2->size()/3; ++i)
+    for(unsigned int i=0; i<lenoCHdata/3; ++i)
     {
         outfile1.write((const char*)CHdata2->begin(),sizeof (char));
         CHdata2->pop();
