@@ -8,18 +8,106 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    //Get This PC Name
-   localHostName = QHostInfo:: localHostName();
-   qDebug() <<"localHostName: "<<localHostName;
+    //init Socket
+    initRecvSocket();
+
+    //set Local Message
+    setLocalMsg();
+
+    //Counting 60s
+    udpTimer = new QTimer();
+    udpTimer->setTimerType(Qt::PreciseTimer);//设置定时器对象精确度模式，分辨率为1ms
+    isTimeUpdate = false;
+    udpTimer->start(60000);
+
+    dealMsg  = new DealMsg(RecvSocket);
+
+    writeToFiles = new WriteToFiles(dealMsg);
+
+    OpenDealMsgThread();
+
+    //Every time dealMsg is finished, connect dealMsgFinshedSlot()
+    connect(dealMsg,&QThread::finished,this,&MainWindow::FinishDealMsgThread);
+
+    //Every 60s emit a timeout(), connect OpenWriteToFilesThread
+    connect(udpTimer,&QTimer::timeout,this,&MainWindow::OpenWriteToFilesThread);
+
+    //Every time dealMsg is finished, connect dealMsgFinshedSlot()
+    connect(writeToFiles,&QThread::finished,this,&MainWindow::FinishWriteToFilesThread);
+
+ }
+
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+
+void MainWindow::setLocalMsg()
+{
+    //获取本机的计算机名
+   QString localHostName = QHostInfo:: localHostName();
+   qDebug() <<"localHostName: "<<localHostName<<endl;
+
    ui->textEdit_Msg->insertPlainText("localHostName: "+localHostName+'\n');
 
-   //Get local IP
-   info = QHostInfo::fromName(localHostName);
-   strIpAddress  = info.addresses();
-   IpAddress =  strIpAddress.back();
-   qDebug() << "IpAddress: " << IpAddress;
+   //获取本机IP
+   QHostInfo info = QHostInfo::fromName(localHostName);
+   QList<QHostAddress> strIpAddress  = info.addresses();
+   QHostAddress IpAddress =  strIpAddress.back();
+   qDebug() << "IpAddress: " << IpAddress<<endl;
+   qDebug()<<"--------------------------"<<endl;
+
    ui->textEdit_Msg->insertPlainText("IpAddress: "+IpAddress.toString()+'\n');
 
+   //设置窗口的标题
+   QString title = QString("Server IP: %1, Port: 7000").arg(IpAddress.toString());
+   setWindowTitle(title);
+}
+
+void MainWindow::OpenDealMsgThread()
+{
+    dealMsg->setFlag();
+
+    //If dealMsg is Running, wait until it finished
+       if(dealMsg->isRunning())
+           dealMsg->wait();
+
+    //run DealMsg Thread
+    dealMsg->start();
+
+    ui->textEdit_Msg->insertPlainText("Pending...");
+}
+
+void MainWindow::FinishDealMsgThread()
+{
+    //quit Thread
+    dealMsg->quit();
+
+    dealMsg->wait();
+
+}
+
+void MainWindow::OpenWriteToFilesThread()
+{
+//    //first quit dealMsg Thread
+//    dealMsg->resetFlag();
+
+    //then writeToFiles->run()
+    writeToFiles->start();
+}
+
+void MainWindow::FinishWriteToFilesThread()
+{
+    //quit Thread
+    writeToFiles->quit();
+
+    writeToFiles->wait();
+
+}
+
+
+void MainWindow::initRecvSocket()
+{
     //Startup Winsock
     int wsOk =  WSAStartup(MAKEWORD(2,2),&wsaData);
 
@@ -41,7 +129,9 @@ MainWindow::MainWindow(QWidget *parent)
     //Config RecvAddr
     RecvAddr.sin_family = AF_INET;
     RecvAddr.sin_port = htons(7000); //set Destination port
-    RecvAddr.sin_addr.S_un.S_addr = htons(INADDR_ANY); //set Destination IP (suggest 0.0.0.0: 8000)
+    RecvAddr.sin_addr.S_un.S_addr = htons(INADDR_ANY); //set Destination IP
+    qDebug() << "port: 7000 " << endl;
+    ui->textEdit_Msg->insertPlainText("port:  7000"+'\n');
 
     //Bind RecvSocket to RecvAddr
    int bdOk = bind(RecvSocket, (SOCKADDR *)&RecvAddr, sizeof(SOCKADDR_IN));
@@ -51,56 +141,5 @@ MainWindow::MainWindow(QWidget *parent)
         qDebug() <<"Can't bind Socket !" <<WSAGetLastError()<< endl;
         return;
    }
-
-    //set title
-    QString title = QString("Server IP: %1, Port: 8000").arg(IpAddress.toString());
-    setWindowTitle(title);
-
-    //init recvdata object
-    recvdata = new Recvdata(RecvSocket, ui);
-
-    //Counting 60s
-    udpTimer = new QTimer(); //计时1分钟
-    udpTimer->setTimerType(Qt::PreciseTimer);//设置定时器对象精确度模式，分辨率为1ms
-    udpTimer->start(60000);
-
-    //Every 60s emit a timeout()
-    connect(udpTimer,&QTimer::timeout,this,&MainWindow::TimeUpdate);
-
-    //receiving data 有bug！！！！！！！！！
-        recvdata->UDPRecieve();
-
 }
-
-MainWindow::~MainWindow()
-{
-    delete ui;
-}
-
-void MainWindow::TimeUpdate()
-{
-    qDebug() << "TimeUpdate" << endl;
-
-    ui->textEdit_Msg->insertPlainText("TimeUpdate"+'\n');
-
-    //build new files
-    recvdata->changeFileNameOnce();
-
-    //ofstream << CHData
-     recvdata->WriteToFilesWith3Channels();
-
-     //close ofstream
-    recvdata->closeStream();
-}
-
-void MainWindow::on_pushButton_Send_clicked()
-{
-
-}
-
-void MainWindow::on_pushButton_Stop_clicked()
-{
-
-}
-
 
