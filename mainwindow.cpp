@@ -8,26 +8,34 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    //init Socket
-    initRecvSocket();
+    isStart = false;
+
+    isASCII = false;
+
+    isHEX = false;
+
+    isSave = false;
 
     //set Local Message
     setLocalMsg();
 
+    //new UDP_Recv Thread
+    udp_recv = new UDP_Recv(this);
+
+    udp_recv->start();
+
     //Counting 60s
     udpTimer = new QTimer();
-    udpTimer->setTimerType(Qt::PreciseTimer);//设置定时器对象精确度模式，分辨率为1ms
-    isTimeUpdate = false;
-    udpTimer->start(60000);
+    udpTimer->setTimerType(Qt::PreciseTimer);
 
-    dealMsg  = new DealMsg(RecvSocket);
+    //new WriteToFiles Thread
+    writeToFiles = new WriteToFiles(udp_recv);
 
-    writeToFiles = new WriteToFiles(dealMsg);
+    //clear window
+    if(ui->textEdit_Msg->isFullScreen())
+        ui->textEdit_Msg->clear();
 
-    OpenDealMsgThread();
-
-    //Every time dealMsg is finished, connect dealMsgFinshedSlot()
-    connect(dealMsg,&QThread::finished,this,&MainWindow::FinishDealMsgThread);
+    connect(udp_recv,&QThread::finished,this,&MainWindow::FinishUDP_RecvThread);
 
     //Every 60s emit a timeout(), connect OpenWriteToFilesThread
     connect(udpTimer,&QTimer::timeout,this,&MainWindow::OpenWriteToFilesThread);
@@ -35,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
     //Every time dealMsg is finished, connect dealMsgFinshedSlot()
     connect(writeToFiles,&QThread::finished,this,&MainWindow::FinishWriteToFilesThread);
 
- }
+}
 
 MainWindow::~MainWindow()
 {
@@ -45,55 +53,48 @@ MainWindow::~MainWindow()
 void MainWindow::setLocalMsg()
 {
     //获取本机的计算机名
-   QString localHostName = QHostInfo:: localHostName();
-   qDebug() <<"localHostName: "<<localHostName<<endl;
+    QString localHostName = QHostInfo:: localHostName();
+    qDebug() <<"localHostName: "<<localHostName<<endl;
 
-   ui->textEdit_Msg->insertPlainText("localHostName: "+localHostName+'\n');
+    ui->textEdit_Msg->insertPlainText("localHostName: "+localHostName+'\n');
 
-   //获取本机IP
-   QHostInfo info = QHostInfo::fromName(localHostName);
-   QList<QHostAddress> strIpAddress  = info.addresses();
-   QHostAddress IpAddress =  strIpAddress.back();
-   qDebug() << "IpAddress: " << IpAddress<<endl;
-   qDebug()<<"--------------------------"<<endl;
+    //获取本机IP
+    QHostInfo info = QHostInfo::fromName(localHostName);
+    QList<QHostAddress> strIpAddress  = info.addresses();
+    QHostAddress IpAddress =  strIpAddress.back();
+    qDebug() << "IpAddress: " << IpAddress<<endl;
+    qDebug()<<"--------------------------"<<endl;
 
-   ui->textEdit_Msg->insertPlainText("IpAddress: "+IpAddress.toString()+'\n');
+    ui->textEdit_Msg->insertPlainText("IpAddress: "+IpAddress.toString()+'\n');
 
-   //设置窗口的标题
-   QString title = QString("Server IP: %1, Port: 7000").arg(IpAddress.toString());
-   setWindowTitle(title);
+    //设置窗口的标题
+    QString title = QString("Server IP: %1, Port: 7000").arg(IpAddress.toString());
+    setWindowTitle(title);
 }
 
 void MainWindow::OpenDealMsgThread()
 {
-    dealMsg->setFlag();
 
-    //If dealMsg is Running, wait until it finished
-       if(dealMsg->isRunning())
-           dealMsg->wait();
 
-    //run DealMsg Thread
-    dealMsg->start();
-
-    ui->textEdit_Msg->insertPlainText("Pending...");
 }
 
-void MainWindow::FinishDealMsgThread()
+void MainWindow::FinishUDP_RecvThread()
 {
     //quit Thread
-    dealMsg->quit();
+    udp_recv->quit();
 
-    dealMsg->wait();
+    udp_recv->wait();
 
 }
 
 void MainWindow::OpenWriteToFilesThread()
 {
-//    //first quit dealMsg Thread
-//    dealMsg->resetFlag();
+    isSave = ui->checkBox_Save->isChecked();
 
-    //then writeToFiles->run()
-    writeToFiles->start();
+    if(isSave && isStart){
+        writeToFiles->start();
+    }
+
 }
 
 void MainWindow::FinishWriteToFilesThread()
@@ -103,43 +104,56 @@ void MainWindow::FinishWriteToFilesThread()
 
     writeToFiles->wait();
 
+    ui->textEdit_Msg->insertPlainText(" Files have been saved in " + writeToFiles->saveFilenameAll+'\n');
+
+}
+
+void MainWindow::on_pushButton_Start_clicked()
+{
+    isStart = true;
+
+    ui->textEdit_Msg->insertPlainText(" Started ! ");
+}
+
+void MainWindow::on_pushButton_Stop_clicked()
+{
+    isStart = false;
+    isSave = false;
+
+    ui->checkBox_ASCII->setChecked(isStart);
+    ui->checkBox_Hex->setChecked(isStart);
+    ui->checkBox_Save->setChecked(isSave);
+
+    //clear CHdata
+    udp_recv->clearCHdata();
+
+    ui->textEdit_Msg->insertPlainText(" Stopped ! ");
+}
+
+void MainWindow::on_pushButton_Clear_clicked()
+{
+
+    ui->textEdit_Msg->clear();
+
 }
 
 
-void MainWindow::initRecvSocket()
+void MainWindow::on_checkBox_Save_clicked()
 {
-    //Startup Winsock
-    int wsOk =  WSAStartup(MAKEWORD(2,2),&wsaData);
 
-    if(wsOk != 0)
-    {
-            qDebug() <<"Can't start Winsock !" << endl;
-            return;
-    }
+    udpTimer->start(10000);
 
-    //init RecvSocket
-    RecvSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+}
 
-    if(RecvSocket == INVALID_SOCKET)
-    {
-        qDebug() <<"Socket established failed !" << endl;
-        return;
-    }
 
-    //Config RecvAddr
-    RecvAddr.sin_family = AF_INET;
-    RecvAddr.sin_port = htons(7000); //set Destination port
-    RecvAddr.sin_addr.S_un.S_addr = htons(INADDR_ANY); //set Destination IP
-    qDebug() << "port: 7000 " << endl;
-    ui->textEdit_Msg->insertPlainText("port:  7000"+'\n');
+void MainWindow::on_checkBox_ASCII_clicked()
+{
+    isASCII = true;
+}
 
-    //Bind RecvSocket to RecvAddr
-   int bdOk = bind(RecvSocket, (SOCKADDR *)&RecvAddr, sizeof(SOCKADDR_IN));
 
-   if(bdOk  == SOCKET_ERROR)
-   {
-        qDebug() <<"Can't bind Socket !" <<WSAGetLastError()<< endl;
-        return;
-   }
+void MainWindow::on_checkBox_Hex_clicked()
+{
+    isHEX = true;
 }
 

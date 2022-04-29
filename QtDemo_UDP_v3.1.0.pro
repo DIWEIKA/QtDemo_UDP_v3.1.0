@@ -9,23 +9,24 @@ CONFIG += c++11
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    dealmsg.cpp \
     main.cpp \
     mainwindow.cpp \
+    udp_recv.cpp \
     writetofiles.cpp
 
 HEADERS += \
     CirQueue.h \
-    dealmsg.h \
     mainwindow.h \
+    udp_recv.h \
     writetofiles.h
 
 FORMS += \
     mainwindow.ui
 
-LIBS += -lws2_32 libws2_32
-
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+
+LIBS += -lws2_32
