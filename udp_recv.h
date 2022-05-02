@@ -15,7 +15,7 @@ public:
     explicit UDP_Recv(MainWindow* mainwindow);
 
     MainWindow* mainWindow;
-    QUdpSocket* udpSocket;
+
 
     //winSocket API
     WSADATA wsaData;
@@ -25,22 +25,21 @@ public:
     sockaddr_in src_addr_WIN;
     int src_addr_len = sizeof(src_addr_WIN);
     int net_pack_size;
-    int net_pack_size_HEX;
-    char* p_echo_net_pack;
+    int net_pack_size_HEX;    
     QByteArray p_echo_net_pack_HEX;
-
-    BYTE* bufPtr;
+    QByteArray p_echo_net_pack_array;
+    char p_echo_net_pack[1024];
+    char p_echo_net_pack_HEX_data[2048];
+    char bufPtr[1024];
+    char bufPtrHEX[2048];
     shared_ptr<char*> RECORD_BUF;
-    QByteArray datagram;
-    QByteArray datagramHEX;
-    qint64 lenoDatagram;
-    qint64 lenoDatagramHEX;
+
     bool isStart;
     bool isASCII;
     bool isHEX;
     QHostAddress clientAddr;
     quint16 clientPort;
-    qint64 lenoRecv = 4096*1000;
+    int lenoRecv = 1024;
     qint64 lenoRecvHEX;
     qint64 LenoUDP = 4096*1000; //1s发送的数据个数(Bytes)
     shared_ptr<CirQueue<unsigned char>> CHdata2;

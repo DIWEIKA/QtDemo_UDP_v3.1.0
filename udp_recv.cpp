@@ -23,11 +23,14 @@ UDP_Recv::UDP_Recv(MainWindow* mainwindow)
         closesocket(echo_socket_WIN);
     }
     // set socket buffer size
-//    qint64 optVal = 0;
-//    optVal = LenoUDP;
-    int optLen = sizeof(LenoUDP);
-    setsockopt(echo_socket_WIN, SOL_SOCKET, SO_RCVBUF, (char*)&LenoUDP, optLen);
+    int optVal = 0;
+    int optLen = sizeof(optVal);
+    optVal = 4*1024*100000;
+    setsockopt(echo_socket_WIN, SOL_SOCKET, SO_RCVBUF, (char*)&optVal, optLen);
 
+    //预先申请存储空间
+    p_echo_net_pack_array.reserve(1024);
+    p_echo_net_pack_HEX.reserve(2048);
 
     CHdata2 = make_shared<CirQueue<unsigned char>>(LenoUDP);
     CHdata3 = make_shared<CirQueue<unsigned char>>(LenoUDP);
@@ -135,42 +138,60 @@ void UDP_Recv::run()
 
 
             //release p_echo_net_pack
-            delete p_echo_net_pack;
-            p_echo_net_pack = NULL;
+            //            delete p_echo_net_pack;
+            //            p_echo_net_pack = NULL;
 
+            //            delete bufPtr;
+            //            bufPtr = NULL;
 
             //ASCII接收
             if(isASCII && (!isHEX)){
 
-                //define a new char[]
-                p_echo_net_pack = new char[lenoRecv]();
+                //init array
+                p_echo_net_pack[0] = '\0';
 
-                net_pack_size = recvfrom(echo_socket_WIN, (char*)p_echo_net_pack, lenoRecv, 0, (sockaddr *)&src_addr_WIN, &src_addr_len);
+                net_pack_size = recvfrom(echo_socket_WIN, p_echo_net_pack, lenoRecv, 0, (sockaddr *)&src_addr_WIN, &src_addr_len);
+
+                if (net_pack_size == SOCKET_ERROR) {
+
+                    qDebug()<<"recvfrom failed with error : "<< WSAGetLastError() <<endl;
+
+                }
 
                 qDebug()<<"Reciving net_pack_size = "<< net_pack_size <<endl;
 
-                //define a new RECORD_BUF
-                RECORD_BUF = make_shared<char*>(p_echo_net_pack);
+                //init RECORD_BUF
+                bufPtr[0] = '\0';
+
+                //                RECORD_BUF = make_shared<char*>(bufPtr);
 
                 //RECORD_BUF << p_echo_net_pack
-                memcpy(*RECORD_BUF,p_echo_net_pack,lenoRecv);
+                memcpy(bufPtr,p_echo_net_pack,lenoRecv);
 
                 //CHData << RECORD_BUF
                 for(int i=0; i<lenoRecv; i++) {
 
-                    unsigned char usCHDATA =(unsigned char)(*RECORD_BUF)[i];
+                    unsigned char usCHDATA =(unsigned char)bufPtr[i];
 
                     for(int j = 0; j<SaveNumber; j++){
 
-                        //如果CHdataj没满，存入CHdataj，跳出循环；否则存入CHdataj+1
-                        if(!CHdataArray[j]->isFull()){
+//                        //如果CHdataj没满，存入CHdataj，跳出循环；否则存入CHdataj+1
+//                        if(!CHdataArray[j]->isFull()){
 
-                            CHdataArray[j]->push(usCHDATA);
+//                            CHdataArray[j]->push(usCHDATA);
 
-                            break;
-                        }
-                        else
+//                            break;
+//                        }
+//                        else
+//                            continue;
+
+                        //如果CHdataj满了，j++；否则存入CHdataj，然后break
+                        if(CHdataArray[j]->isFull())
                             continue;
+                        else{
+                            CHdataArray[j]->push(usCHDATA);
+                            break;}
+
                     }
 
                 }//end for
@@ -183,26 +204,25 @@ void UDP_Recv::run()
                 lenoRecvHEX = lenoRecv * 2;
 
                 //define a new char[]
-                p_echo_net_pack = new char[lenoRecvHEX]();
+                p_echo_net_pack[0] = '\0';
 
                 net_pack_size = recvfrom(echo_socket_WIN, (char*)p_echo_net_pack, lenoRecvHEX, 0, (sockaddr *)&src_addr_WIN, &src_addr_len);
 
                 qDebug()<<"Reciving net_pack_size = "<< net_pack_size <<endl;
 
-                //define a new RECORD_BUF
-                RECORD_BUF = make_shared<char*>(p_echo_net_pack);
+                //clear QByteArray
+                p_echo_net_pack_array.clear();
+                p_echo_net_pack_HEX.clear();
 
                 //char* 转 QByteArray
-                QByteArray p_echo_net_pack_array = QByteArray(p_echo_net_pack);
+                p_echo_net_pack_array = QByteArray(p_echo_net_pack,lenoRecv);
 
                 p_echo_net_pack_HEX = p_echo_net_pack_array.toHex().toUpper();
-
-                memcpy(*RECORD_BUF,p_echo_net_pack_HEX,lenoRecvHEX);
 
                 //CHData << RECORD_BUF
                 for(int i=0; i<lenoRecvHEX; i++) {
 
-                    unsigned char usCHDATA =(unsigned char)(*RECORD_BUF)[i];
+                    unsigned char usCHDATA =(unsigned char)p_echo_net_pack_HEX[i];
 
                     for(int j = 0; j<SaveNumber; j++){
 
@@ -220,9 +240,6 @@ void UDP_Recv::run()
                 }//end for
 
             } //end else if
-
-            //            else
-            //                break;
 
         } //end if
     }

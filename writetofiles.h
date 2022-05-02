@@ -16,7 +16,6 @@ class WriteToFiles : public QThread
 public:
     WriteToFiles(UDP_Recv* udp_Recv);
 
-    QTimer* udpTimer;
     UDP_Recv* udp_recv;
     bool isTimeUpdate;
     QDateTime dateTime; //当前系统时间

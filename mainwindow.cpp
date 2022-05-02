@@ -72,11 +72,6 @@ void MainWindow::setLocalMsg()
     setWindowTitle(title);
 }
 
-void MainWindow::OpenDealMsgThread()
-{
-
-
-}
 
 void MainWindow::FinishUDP_RecvThread()
 {
@@ -141,7 +136,7 @@ void MainWindow::on_pushButton_Clear_clicked()
 void MainWindow::on_checkBox_Save_clicked()
 {
 
-    udpTimer->start(10000);
+    udpTimer->start(1000);
 
 }
 

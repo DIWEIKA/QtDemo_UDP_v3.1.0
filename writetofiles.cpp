@@ -43,17 +43,32 @@ void WriteToFiles::run()
 
     for(int i = 0; i< SaveNumber; i++){
 
-        if(!udp_recv->CHdataArray[i]->isEmpty()){
+//        if(!udp_recv->CHdataArray[i]->isEmpty()){
 
+//            sizeoCHdata = udp_recv->CHdataArray[i]->size();
+
+//            CHdata = udp_recv->CHdataArray[i];
+
+//            for(unsigned int j=0; j<sizeoCHdata; ++j){
+//                outfileAll.write((const char*)CHdata->begin(),sizeof(unsigned char));
+//                CHdata->pop();
+//            }
+//         }
+        if(udp_recv->CHdataArray[i]->isEmpty())
+            continue;
+        else
+        {
             sizeoCHdata = udp_recv->CHdataArray[i]->size();
 
-            CHdata = udp_recv->CHdataArray[i];
+//            CHdata = udp_recv->CHdataArray[i];
 
             for(unsigned int j=0; j<sizeoCHdata; ++j){
-                outfileAll.write((const char*)CHdata->begin(),sizeof (unsigned char));
-                CHdata->pop();
+                outfileAll.write((const char*)udp_recv->CHdataArray[i]->begin(),sizeof(unsigned char));
+                udp_recv->CHdataArray[i]->pop();
             }
-         }
+
+            udp_recv->CHdataArray[i]->clear();
+        }
     }
 
     qDebug()<<"ofstream writing over ! "<<endl;

@@ -42,33 +42,17 @@ public:
 
     Ui::MainWindow *ui;
 
-    Senddata *senddata;
-    QUdpSocket *udpSocket; //udp pointer
     QTimer* udpTimer;
-    DealMsg* dealMsg;
     UDP_Recv* udp_recv;
     WriteToFiles* writeToFiles;
     bool isSave;
     bool isStart;
     bool isASCII;
     bool isHEX;
-    BYTE* bufPtr;
-    shared_ptr<BYTE*> RECORD_BUF; //接收数据的Buffer
-    qint64 lenoDatagram; //Datagram的长度
-    qint64 lenoDatagramHEX;
-    QByteArray datagram; //接收UDP的容器
-    QByteArray datagramHEX;
-    QHostAddress clientAddr; //客户端IP
-    quint16 clientPort; //客户端port
-    shared_ptr<CirQueue<unsigned char>> CHdata2;
-    shared_ptr<CirQueue<unsigned char>> CHdata3;
-    qint64 LenoUDP = 4096*10000;
 
     void setLocalMsg();
-    void OpenDealMsgThread();
     void OpenWriteToFilesThread();
     void stopThread();
-
 
 
 private slots:
